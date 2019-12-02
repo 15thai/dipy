@@ -90,6 +90,7 @@ for modulename, other_sources, language in (
         ('dipy.segment.clustering_algorithms', [], 'c'),
         ('dipy.segment.mrf', [], 'c'),
         ('dipy.denoise.denspeed', [], 'c'),
+        ('dipy.denoise.randomlpca_denoise', [], 'c'),     # Me added
         ('dipy.denoise.pca_noise_estimate', [], 'c'),
         ('dipy.denoise.nlmeans_block', [], 'c'),
         ('dipy.denoise.enhancement_kernel', [], 'c'),
@@ -101,7 +102,7 @@ for modulename, other_sources, language in (
         ('dipy.align.bundlemin', [], 'c'),
         ('dipy.align.transforms', [], 'c'),
         ('dipy.align.parzenhist', [], 'c'),
-        ('dipy.align.quadratictransform', [], 'c'),
+        ('dipy.align.quadratictransform', [], 'c'),      # Me added
         ('dipy.utils.omp', [], 'c'),
         ('dipy.utils.fast_numpy', [], 'c')):
     pyx_src = pjoin(*modulename.split('.')) + '.pyx'

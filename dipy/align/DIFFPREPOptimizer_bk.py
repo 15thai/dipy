@@ -108,8 +108,7 @@ class  DIFFPREPOptimizer(object):
                 if (last_Cost - self.CurrentCost) > self.Epsilon:
                     self.CurrentIteration += 1
                     last_Cost = self.CurrentCost
-                    print(self.CurrentIteration,last_Cost,self.xopt )
-
+                    
                 else:
                     if curr_halve < self.m_NumberHalves:
                         curr_halve +=1

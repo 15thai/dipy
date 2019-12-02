@@ -332,8 +332,8 @@ class QuadraticRegistration(object):
 
         for level in range(self.levels -1 , -1, -1):
             self.current_level = level
-            if self.verbosity >= VerbosityLevels.STATUS:
-                print('Optimizing level %d' % level)
+            # if self.verbosity >= VerbosityLevels.STATUS:
+            #     print('Optimizing level %d' % level)
 
             # Resample the smooth static image to the shape of this level
             current_static_shape = self.static_ss.get_domain_shape(level)
