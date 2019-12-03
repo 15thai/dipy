@@ -117,6 +117,8 @@ class QuadraticMap (object):
         if not np.all(np.isfinite(QuadraticParams)):
             raise QuadraticInvalidValuesError('Quadratic transform contains invalid elements')
 
+        self.ComputeMatrix()
+
     def get_QuadraticParams(self):
         return self.QuadraticParams.copy()
 
@@ -321,13 +323,11 @@ class QuadraticRegistration(object):
         original_moving_shape = self.moving_ss.get_image(0).shape
         original_moving_grid2world = self.moving_ss.get_affine(0)
 
-        Quadratic_map = transform_centers_of_mass(static,moving,self.phase,
-                                                  static_grid2world,
-                                                  moving_grid2world)
+        Quadratic_map = QuadraticMap(self.phase)
 
         if self.initial_QuadraticParams is not None:
             QuadraticParams = Quadratic_map.get_QuadraticParams()
-            QuadraticParams[3:6] = self.initial_QuadraticParams[3:6]
+            QuadraticParams[0:6] = self.initial_QuadraticParams[0:6]
             Quadratic_map.set_QuadraticParams(QuadraticParams)
 
         for level in range(self.levels -1 , -1, -1):
@@ -340,17 +340,27 @@ class QuadraticRegistration(object):
             current_static_grid2world = self.static_ss.get_affine(level)
             smooth_static = self.static_ss.get_image(level)
 
-            id_Quadratic_map = QuadraticMap( phase, None,
+            current_moving_shape = self.moving_ss.get_domain_shape(level)
+            current_moving_grid2world = self.moving_ss.get_affine(level)
+            smooth_moving = self.moving_ss.get_image(level)
+
+            id_Quadratic_map_static = QuadraticMap( phase, None,
                                             current_static_shape,
                                             current_static_grid2world,
                                             original_static_shape,
                                             original_static_grid2world)
 
-            current_static = id_Quadratic_map.transform(smooth_static)
+            id_Quadratic_map_moving = QuadraticMap( phase, None,
+                                            current_moving_shape,
+                                            current_moving_grid2world,
+                                            original_moving_shape,
+                                            original_moving_grid2world)
 
-            # The moving image is full resolution
-            current_moving_grid2world = original_moving_grid2world
-            current_moving = self.moving_ss.get_image(level)
+
+
+            current_static = id_Quadratic_map_static.transform(smooth_static)
+            current_moving = id_Quadratic_map_moving.transform(smooth_moving)
+
 
             # Prepare the metric for iterations at this resolution
             self.metric.setup(Quadratic_map, current_static, current_moving,

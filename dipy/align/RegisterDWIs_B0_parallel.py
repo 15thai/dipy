@@ -7,6 +7,8 @@ import pymp
 import nibabel as nib
 from dipy.align import sub_processes
 from dipy.denoise.fsl_bet import fsl_bet_mask
+# For Debugging purpose.
+import matplotlib.pyplot as plt
 
 def get_angles_list (step = 45):
     angles_list = []
@@ -25,7 +27,7 @@ def register_images (target_arr, target_affine,
                      lim_arr=None,
                      registration_type='quadratic',
                      initialize=False,
-                     optimizer_setting=False):
+                     ):
     fixed_image, moving_image = sub_processes.set_images_in_scale(lim_arr,
                                                                   target_arr,
                                                                   moving_arr)
@@ -36,16 +38,19 @@ def register_images (target_arr, target_affine,
     dim = len(fixed_image.shape)
 
     orig_fixed_grid2world = target_affine
+    fixed_grid2world = target_affine
     orig_moving_grid2world = moving_affine
 
-    mid_index = (sz - 1) / 2.
+   # mid_index = (sz - 1) / 2.
+   # # Physical Coordinate of the center index = 0,0,0
+   # new_orig_temp = - orig_fixed_grid2world[0:3, 0:3].dot(mid_index)
+   # fixed_grid2world = orig_fixed_grid2world.copy()
+   # fixed_grid2world[0:3, 3] = new_orig_temp
 
-    # Physical Coordinate of the center index = 0,0,0
-    new_orig_temp = - orig_fixed_grid2world[0:3, 0:3].dot(mid_index)
-    fixed_grid2world = orig_fixed_grid2world.copy()
-    fixed_grid2world[0:3, 3] = new_orig_temp
 
-    new_orig_temp = - orig_moving_grid2world[0:3, 0:3].dot(mid_index)
+
+    mid_index_moving = (moving_sz - 1) / 2.
+    new_orig_temp = - orig_moving_grid2world[0:3, 0:3].dot(mid_index_moving)
     moving_grid2world = orig_moving_grid2world.copy()
     moving_grid2world[0:3, 3] = new_orig_temp
 
@@ -61,8 +66,17 @@ def register_images (target_arr, target_affine,
                                                         moving_grid2world=moving_grid2world)
 
     grad_scale = sub_processes.get_gradients_params(resolution, sz)
+    grad_scale2 = grad_scale.copy()
+    grad_scale2[3:6] = grad_scale2[3:6] * 2
 
-    transformRegister = QuadraticRegistration(phase)
+    transformRegister.factors = [4,2,1]
+    transformRegister.sigmas = [1.,0.25,0]
+    transformRegister.levels = 3
+
+
+
+    flag2 = transformRegister.optimization_flags
+    transformRegister.set_optimizationflags(flag2)
 
     transformRegister.initial_QuadraticParams = initializeTransform.get_QuadraticParams()
     finalTransform = transformRegister.optimize(fixed_image, moving_image,
@@ -72,8 +86,6 @@ def register_images (target_arr, target_affine,
                                                 grad_params=grad_scale)
     finalparams = finalTransform.get_QuadraticParams()
 
-    finalTransform = QuadraticMap(phase, finalparams, fixed_image.shape, fixed_grid2world,
-                                  moving_image.shape, moving_grid2world)
     image_transform = finalTransform.transform(image = moving_arr,QuadraticParams=finalparams)
     return finalparams,image_transform
 
@@ -81,14 +93,6 @@ def register_images (target_arr, target_affine,
 
 
 def test ():
-    # b0_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0.nii"
-    # moving_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/100408_LR_proc.nii"
-    # mask_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0_mask_mask.nii"
-    # b0_target = nib.load(b0_target_image)
-    # moving_image = nib.load(moving_image)
-    # mask_target = nib.load(mask_target_image)
-    # b0_arr = b0_target.get_data()
-    # mask_arr = mask_target.get_data()
     image_fn = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test4/cont_21_0_AP_b1100_proc.nii"
 
     log_folder = os.path.join(os.path.dirname(image_fn), 'log_py')
@@ -96,26 +100,26 @@ def test ():
         os.makedirs(log_folder)
 
 
-    b0_id = 0
-
     image = nib.load(image_fn)
     moving_image = image.get_data()
 
+    # Getting B0_volume
+    b0_id = 0
     b0_arr = moving_image[...,b0_id]
     phase = 'vertical'
     moving_image_shr = pymp.shared.array((moving_image.shape), dtype = np.float32)
     moving_image_shr[:] = image.get_data()
-    mask_arr = np.ones_like(b0_arr)
 
     # save temp b0s
     b0_image = nib.Nifti1Image(b0_arr, image.affine)
     b0_image_fn = os.path.join(os.path.dirname(image_fn), "temp_b0.nii")      # temp_b0.nii
-    b0_mask_fn  = b0_image_fn.split(".nii")[0]+ "mask.nii"                     # temp_b0mask.nii
-    b0_mask_bi_fn = b0_image_fn.split(".nii")[0]+ "_mask.nii"                  # temo_b0mask_mask.nii
+    b0_mask_fn  = b0_image_fn.strip(".nii")+ "mask.nii"                     # temp_b0mask.nii
+    b0_mask_bi_fn = b0_mask_fn.strip(".nii")+ '_mask.nii'                 # temo_b0mask_mask.nii
 
+    # Save b0 out to get fsl back
     nib.save(b0_image, b0_image_fn)
     fsl_bet_mask(b0_image_fn,
-                 b0_image_fn.split(".nii")[0] + "mask.nii",
+                 b0_image_fn.strip(".nii")+ "mask.nii",
                  )
 
     lim_arr = pymp.shared.array((4, moving_image.shape[-1]), dtype=np.float32)
@@ -130,27 +134,34 @@ def test ():
     #                                                       curr_vol,
     #                                                       mask_arr)
 
-    b0_binary_mask = nib.load(b0_mask_bi_fn)
-    b0_mask_mask = b0_mask_bi_fn.get_data()
+    # Binary Mask
+    b0_mask_mask_image = nib.load(b0_mask_bi_fn)
+    b0_mask_mask = b0_mask_mask_image.get_data()
 
-    b0_img_target, b0_mask_img = sub_processes.dmc_make_target(b0_image_fn, b0_mask_mask)
+    # B0_masked
+    b0_masked = nib.load(b0_mask_fn)
+    b0_masked_arr = b0_masked.get_data()
+
+    b0_img_target_dmc, b0_img_target_affine, b0_mask_img = sub_processes.dmc_make_target(b0_image_fn, b0_masked_arr)
 
     # with pymp.Parallel() as p:
     # for index in p.range(1, moving_image.shape[-1]):
     for index in range(1, moving_image.shape[-1]):
-        curr_vol = moving_image_shr[:, :, :, index]
+        curr_vol = moving_image_shr[:, :, :, index].copy()
 
         lim_arr[:, index] = sub_processes.choose_range(b0_arr,
                                                        curr_vol,
-                                                       b0_mask_img)
+                                                       b0_mask_mask)
 
-        transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target, b0_image_target,
+
+        transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target_dmc,
+                                                                                 b0_img_target_affine,
                              curr_vol, image.affine,
                              phase,
                             lim_arr=lim_arr[:,index],
                             registration_type='quadratic',
                             initialize=True,
-                            optimizer_setting=False)
+                           )
         np.savetxt(os.path.join(log_folder, 'transformations_test_{}_init_op.txt'.format(index)), transformation)
 
     print("Time cost {}", time.time() - start_time)

@@ -184,7 +184,7 @@ def register_to_b0 (fixed_im_nib,
                     lim_arr = None,
                     registration_type = 'quadratic',
                     initialize = False,
-                    ):
+                    optimizer_setting = False):
     fixed_image = fixed_im_nib.get_data().copy()
     moving_image = moving_data
 
@@ -223,7 +223,8 @@ def register_to_b0 (fixed_im_nib,
 
     grad_scale = get_gradients_params(resolution, sz)
 
-    if initialize:
+    if initialize and ~optimizer_setting:
+        print("initializing")
         grad_scale2 = grad_scale.copy()
         grad_scale2[3:6] = grad_scale2[3:6]*2
 
@@ -242,18 +243,60 @@ def register_to_b0 (fixed_im_nib,
         except:
             ValueError("ERROR")
 
-    initializeTransform.get_QuadraticParams()
-    transformRegister = QuadraticRegistration(phase)
 
-    # transformRegister = QuadraticRegistration(phase,initial_QuadraticParams= initializeTransform.get_QuadraticParams(),
-    #                                            gradients_params = grad_scale )
-    transformRegister.initial_QuadraticParams = initializeTransform.get_QuadraticParams()
-    finalTransform = transformRegister.optimize(fixed_image, moving_image,
-                                        phase=phase,
-                                        static_grid2world=fixed_grid2world,
-                                        moving_grid2world=moving_grid2world,
-                                        grad_params=grad_scale)
-    finalparams = finalTransform.get_QuadraticParams()
+    if optimizer_setting:
+        print("optimizing")
+        angles_list =[]
+        for x in range(-180, 180, 45):
+            for y in range(-180, 180, 45):
+                for z in range(-180, 180, 45):
+                    mx = x/180 *np.pi
+                    my = y/180 *np.pi
+                    mz = z/180 *np.pi
+                    angles_list.append([mx,my,mz])
+
+        flags2 = np.zeros(21)
+        flags2[:6] = 1
+        best_reg_val = 1.
+        best_params = np.zeros(21)
+        transformRegister = QuadraticRegistration(phase)
+        transformRegister.set_optimizationflags(flags2)
+        transformRegister.grad_params = grad_scale
+        transformRegister.factors = [3]
+        transformRegister.sigmas = [0]
+        transformRegister.levels = 1
+
+        for i in range(len(angles_list)):
+            dummy_transformMap = QuadraticMap(phase)
+            dummy_transformMap.QuadraticParams[3:6] = angles_list[i]
+
+            transformRegister.initial_QuadraticParams = dummy_transformMap.QuadraticParams
+            dummy_transformMap = transformRegister.optimize(fixed_image, moving_image, phase, static_grid2world= fixed_grid2world,
+                                                            moving_grid2world = moving_grid2world)
+            reg_val = transformRegister.current_level_cost
+
+            if reg_val < best_reg_val:
+                print(reg_val, best_reg_val)
+                best_reg_val = reg_val
+                best_params = dummy_transformMap.QuadraticParams
+
+        # finalTransform = best_map(phase, QuadraticParams= best_params)
+        finalparams = best_params
+
+    else:
+        print("not optimizing")
+        initializeTransform.get_QuadraticParams()
+        transformRegister = QuadraticRegistration(phase)
+
+        # transformRegister = QuadraticRegistration(phase,initial_QuadraticParams= initializeTransform.get_QuadraticParams(),
+        #                                            gradients_params = grad_scale )
+        transformRegister.initial_QuadraticParams = initializeTransform.get_QuadraticParams()
+        finalTransform = transformRegister.optimize(fixed_image, moving_image,
+                                            phase=phase,
+                                            static_grid2world=fixed_grid2world,
+                                            moving_grid2world=moving_grid2world,
+                                            grad_params=grad_scale)
+        finalparams = finalTransform.get_QuadraticParams()
 
     finalTransform = QuadraticMap(phase, finalparams, fixed_image.shape, fixed_grid2world,
                                         moving_image.shape, moving_grid2world)

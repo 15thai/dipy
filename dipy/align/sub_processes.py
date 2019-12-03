@@ -57,10 +57,10 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
                                                      b0_image.affine,
                                                      current_resolution,
                                                      new_resolution,
-                                                     order=3)
+                                                     order=1)
 
-    transform_mask_data[(transform_mask_data < 0.5)] = 0
-    transform_mask_data[(transform_mask_data >= 0.5)] = 1
+    transform_mask_data[(transform_mask_data <= 0.5)] = 0
+    transform_mask_data[(transform_mask_data > 0.5)] = 1
 
     x, y, z = np.where(transform_mask_data == 1)
 
@@ -93,13 +93,21 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
     start = np.array([minx, miny, minz])
     sz = np.array([maxx - minx + 1, maxy - miny + 1, maxz - minz + 1])
 
+    orig_sz= np.array(transform_b0_data.shape)
+    mid_index = (orig_sz - 1) / 2.
+    new_orig_temp = - transform_b0_affine[0:3, 0:3].dot(mid_index)
+    transform_b0_affine[0:3, 3] = new_orig_temp
+
+    new_orig= transform_b0_affine.dot([start[0],start[1],start[2],1 ])
+    transform_b0_affine[:,3]=new_orig
+
+
     if np.sum(sz) < 0.3 * np.sum(transform_mask_data.shape):
         start = np.zeros(3)
         sz = transform_mask_data.shape
-    DMC_image = np.zeros(transform_mask_data.shape)
-    DMC_image[start[0]: start[0] + sz[0],
-              start[1]: start[1] + sz[1],
-              start[2]: start[2] + sz[2]] = transform_b0_data[start[0]: start[0] + sz[0],
+    #DMC_image = np.zeros(transform_mask_data.shape)
+    DMC_image= np.zeros(sz)
+    DMC_image[:,:,:] = transform_b0_data[start[0]: start[0] + sz[0],
                                                               start[1]: start[1] + sz[1],
                                                               start[2]: start[2] + sz[2]]
 
@@ -109,7 +117,7 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
     # Set the equal to 1 - Keep the orginal image
     if msk_cnt < 0.02 * npixel:
         b0_bi_mask_data[:] = 1
-    return DMC_image, b0_bi_mask_data
+    return DMC_image, transform_b0_affine, b0_bi_mask_data
 
 
 def choose_range(b0_image_data, curr_vol, b0_mask_image):
@@ -172,7 +180,6 @@ def get_gradients_params (resolution, sizes, default = 21):
                 sz[0] / 2. * resolution[0])
     grad_params[20] = 5. * resolution[2] * 1. / (sz[0] / 2. * resolution[0]) / (sz[0] / 2. * resolution[0]) / (
                 sz[0] / 2. * resolution[0])
-    grad_params[:] = grad_params[:] / 1.5
     return grad_params
 
 

@@ -13,6 +13,7 @@ print(os.getenv('PATH'))
 def fsl_bet_mask(input_image_fn, output_image_fn = None, binary_mask = True):
     myb = fsl.BET()
     myb.inputs.in_file = input_image_fn
+    myb.inputs.frac = 0.3
 
     if binary_mask:
         myb.inputs.mask = True
