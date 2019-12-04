@@ -6,7 +6,7 @@ import numpy as np
 import pymp
 import nibabel as nib
 from dipy.align import sub_processes
-from dipy.denoise.fsl_bet import fsl_mask
+from dipy.denoise.fsl_bet import fsl_bet_mask
 # For Debugging purpose.
 import matplotlib.pyplot as plt
 
@@ -107,12 +107,20 @@ def test ():
     b0_id = 0
     b0_arr = moving_image[...,b0_id]
     phase = 'vertical'
+    moving_image_shr = pymp.shared.array((moving_image.shape), dtype = np.float32)
+    moving_image_shr[:] = image.get_data()
 
+    # save temp b0s
+    b0_image = nib.Nifti1Image(b0_arr, image.affine)
+    b0_image_fn = os.path.join(os.path.dirname(image_fn), "temp_b0.nii")      # temp_b0.nii
+    b0_mask_fn  = b0_image_fn.strip(".nii")+ "mask.nii"                     # temp_b0mask.nii
+    b0_mask_bi_fn = b0_mask_fn.strip(".nii")+ '_mask.nii'                 # temo_b0mask_mask.nii
 
-    b0_masked_image, b0_masked_mask_image = fsl_mask(b0_arr,
-                                                     image.affine,
-                                                     save_to_dir= os.path.dirname(image_fn))
-
+    # Save b0 out to get fsl back
+    nib.save(b0_image, b0_image_fn)
+    fsl_bet_mask(b0_image_fn,
+                 b0_image_fn.strip(".nii")+ "mask.nii",
+                 )
 
     lim_arr = pymp.shared.array((4, moving_image.shape[-1]), dtype=np.float32)
 
@@ -126,13 +134,15 @@ def test ():
     #                                                       curr_vol,
     #                                                       mask_arr)
 
-    b0_image = nib.Nifti1Image(b0_arr, image.affine)
-    b0_img_target_dmc, b0_img_target_affine, b0_mask_img = sub_processes.dmc_make_target(b0_image, b0_masked_image)
+    # Binary Mask
+    b0_mask_mask_image = nib.load(b0_mask_bi_fn)
+    b0_mask_mask = b0_mask_mask_image.get_data()
 
-    # moving_image_shr = pymp.shared.array((moving_image.shape), dtype = np.float32)
-    # moving_image_shr[:] = image.get_data()
-    moving_image_shr = image.get_data()
+    # B0_masked
+    b0_masked = nib.load(b0_mask_fn)
+    b0_masked_arr = b0_masked.get_data()
 
+    b0_img_target_dmc, b0_img_target_affine, b0_mask_img = sub_processes.dmc_make_target(b0_image_fn, b0_masked_arr)
 
     # with pymp.Parallel() as p:
     # for index in p.range(1, moving_image.shape[-1]):
@@ -141,7 +151,7 @@ def test ():
 
         lim_arr[:, index] = sub_processes.choose_range(b0_arr,
                                                        curr_vol,
-                                                       b0_masked_mask_image.get_data())
+                                                       b0_mask_mask)
 
 
         transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target_dmc,

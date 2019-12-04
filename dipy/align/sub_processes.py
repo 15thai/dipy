@@ -43,9 +43,9 @@ def creating_mask(image_filename, b0_masked_filename, isBinary = True):
                  binary_mask= isBinary)
 
 
-def dmc_make_target( b0_image_fn, b0_bi_mask_data):
+def dmc_make_target( b0_image, b0_bi_mask_image):
     fct = 0.9
-    b0_image = nib.load(b0_image_fn)
+    # b0_image = nib.load(b0_image_fn)
     current_resolution = np.array( b0_image.header.get_zooms()[:3])
     new_resolution = current_resolution /fct
     transform_b0_data, transform_b0_affine = reslice(b0_image.get_data(),
@@ -53,8 +53,8 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
                                                 current_resolution,
                                                 new_resolution,
                                                 order = 3)
-    transform_mask_data, transform_mask_affine = reslice(b0_bi_mask_data,
-                                                     b0_image.affine,
+    transform_mask_data, transform_mask_affine = reslice(b0_bi_mask_image.get_data(),
+                                                         b0_bi_mask_image.affine,
                                                      current_resolution,
                                                      new_resolution,
                                                      order=1)
@@ -106,18 +106,18 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
         start = np.zeros(3)
         sz = transform_mask_data.shape
     #DMC_image = np.zeros(transform_mask_data.shape)
-    DMC_image= np.zeros(sz)
-    DMC_image[:,:,:] = transform_b0_data[start[0]: start[0] + sz[0],
+    DMC_image_arr= np.zeros(sz)
+    DMC_image_arr[:,:,:] = transform_b0_data[start[0]: start[0] + sz[0],
                                                               start[1]: start[1] + sz[1],
                                                               start[2]: start[2] + sz[2]]
-
+    b0_bi_mask_data = b0_bi_mask_image.get_data()
     msk_cnt = len(b0_bi_mask_data[b0_bi_mask_data != 0])
     npixel = b0_bi_mask_data.size
 
     # Set the equal to 1 - Keep the orginal image
     if msk_cnt < 0.02 * npixel:
         b0_bi_mask_data[:] = 1
-    return DMC_image, transform_b0_affine, b0_bi_mask_data
+    return DMC_image_arr, transform_b0_affine, b0_bi_mask_data
 
 
 def choose_range(b0_image_data, curr_vol, b0_mask_image):
