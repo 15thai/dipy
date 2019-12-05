@@ -111,7 +111,7 @@ def test ():
     b0_image = nib.Nifti1Image(b0_arr, image.affine)
     b0_image_fn = os.path.join(os.path.dirname(image_fn), "temp_b0.nii")      # temp_b0.nii
     b0_mask_fn  = b0_image_fn.split(".nii")[0]+ "mask.nii"                     # temp_b0mask.nii
-    b0_mask_bi_fn = b0_image_fn.split(".nii")[0]+ "_mask.nii"                  # temo_b0mask_mask.nii
+    b0_mask_bi_fn = b0_mask_fn.split(".nii")[0]+ "_mask.nii"                  # temo_b0mask_mask.nii
 
     nib.save(b0_image, b0_image_fn)
     fsl_bet_mask(b0_image_fn,
@@ -131,7 +131,7 @@ def test ():
     #                                                       mask_arr)
 
     b0_binary_mask = nib.load(b0_mask_bi_fn)
-    b0_mask_mask = b0_mask_bi_fn.get_data()
+    b0_mask_mask = b0_binary_mask.get_data()
 
     b0_img_target, b0_mask_img = sub_processes.dmc_make_target(b0_image_fn, b0_mask_mask)
 
@@ -144,19 +144,19 @@ def test ():
                                                        curr_vol,
                                                        b0_mask_img)
 
-        transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target, b0_image_target,
+        transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target, b0_image.affine,
                              curr_vol, image.affine,
                              phase,
                             lim_arr=lim_arr[:,index],
                             registration_type='quadratic',
                             initialize=True,
                             optimizer_setting=False)
-        np.savetxt(os.path.join(log_folder, 'transformations_test_{}_init_op.txt'.format(index)), transformation)
+    np.savetxt(os.path.join(log_folder, 'transformations_test_2.txt'.format(index)), transformation)
 
     print("Time cost {}", time.time() - start_time)
 
     image_out = nib.Nifti1Image(moving_image_shr, image.affine)
-    image_out_fn = image_fn.split(".nii")[0] + "_image_eddy_test_python_init_op.nii"
+    image_out_fn = image_fn.split(".nii")[0] + "_image_eddy_test_python_2.nii"
     nib.save(image_out, image_out_fn)
 
 test()
