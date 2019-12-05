@@ -48,7 +48,7 @@ def register_images (target_arr, target_affine,
    # fixed_grid2world[0:3, 3] = new_orig_temp
 
 
-
+    # COmputing the new origin and phys.cor of the cropped image
     mid_index_moving = (moving_sz - 1) / 2.
     new_orig_temp = - orig_moving_grid2world[0:3, 0:3].dot(mid_index_moving)
     moving_grid2world = orig_moving_grid2world.copy()
@@ -79,15 +79,18 @@ def register_images (target_arr, target_affine,
     transformRegister.set_optimizationflags(flag2)
 
     transformRegister.initial_QuadraticParams = initializeTransform.get_QuadraticParams()
-    finalTransform = transformRegister.optimize(fixed_image, moving_image,
+    try:
+
+        finalTransform = transformRegister.optimize(fixed_image, moving_image,
                                                 phase=phase,
                                                 static_grid2world=fixed_grid2world,
                                                 moving_grid2world=moving_grid2world,
                                                 grad_params=grad_scale)
-    finalparams = finalTransform.get_QuadraticParams()
-
-    image_transform = finalTransform.transform(image = moving_arr,QuadraticParams=finalparams)
-    return finalparams,image_transform
+    # image_transform = finalTransform.transform(image = moving_arr,QuadraticParams=finalparams)
+        image_transform = finalTransform.transform(moving_image, sampling_grid_shape = moving_image.shape)
+    except:
+        print("OOps")
+    return finalTransform.get_QuadraticParams(),image_transform
 
 
 
@@ -152,7 +155,7 @@ def test ():
                             registration_type='quadratic',
                             initialize=True,
                            )
-        np.savetxt(os.path.join(log_folder, 'transformations_test_{}_init_op.txt'.format(index)), transformation)
+    np.savetxt(os.path.join(log_folder, 'transformations_test_init_op.txt'), transformation)
 
     print("Time cost {}", time.time() - start_time)
 

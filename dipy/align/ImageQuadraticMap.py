@@ -131,7 +131,14 @@ class QuadraticMap (object):
 
         if sampling_grid_shape is None:
             sampling_grid_shape = self.domain_shape
+
+        print(sampling_grid_shape)
+        # try:
+
         dim = len(sampling_grid_shape)
+        # except:
+        #     print(image_grid2world)
+        #     print("OOOps")
         shape = np.array(sampling_grid_shape, dtype=np.int32)
 
         if sampling_grid2world is None:
@@ -229,7 +236,8 @@ class MutualInformationMetric(object):
         return -1 *self.metric_val
 
 class QuadraticRegistration(object):
-    def __init__(self, phase, initial_QuadraticParams = None,
+    def __init__(self, phase,
+                 initial_QuadraticParams = None,
                  gradients_params = None,
                  metric = None, levels = None,
                  sigmas = None, factors = None, registration_type=None,
