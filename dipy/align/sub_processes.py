@@ -97,7 +97,7 @@ def dmc_make_target( b0_image_fn, b0_bi_mask_data):
         start = np.zeros(3)
         sz = transform_mask_data.shape
     DMC_image = np.zeros(b0_image.shape)
-    print(DMC_image.shape)
+    # print(DMC_image.shape)
     DMC_image[start[0]: start[0] + sz[0],
               start[1]: start[1] + sz[1],
               start[2]: start[2] + sz[2]] = transform_b0_data[start[0]: start[0] + sz[0],

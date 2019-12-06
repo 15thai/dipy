@@ -61,8 +61,18 @@ def register_images (target_arr, target_affine,
                                                         moving_grid2world=moving_grid2world)
 
     grad_scale = sub_processes.get_gradients_params(resolution, sz)
+    grad_scale2 = grad_scale.copy()
 
-    transformRegister = QuadraticRegistration(phase)
+    grad_scale2[3:6] = grad_scale2[3:6] * 2
+
+    transformRegister.factors = [3]
+    transformRegister.sigmas = [0]
+    transformRegister.levels = 1
+
+    flag2 = np.zeros(21)
+    flag2[0:6] = transformRegister.optimization_flags[:6]
+    transformRegister.set_optimizationflags(flag2)
+    # transformRegister = QuadraticRegistration(phase)
 
     transformRegister.initial_QuadraticParams = initializeTransform.get_QuadraticParams()
     finalTransform = transformRegister.optimize(fixed_image, moving_image,
@@ -123,40 +133,34 @@ def test ():
     transformation = pymp.shared.array((moving_image.shape[-1],21), dtype=np.float64)
     start_time = time.time()
 
-    #with pymp.Parallel() as p:
-    #    for index in p.range(1, moving_image.shape[-1]):
-    #        curr_vol = moving_image_shr[:, :, :, index]
-    #        lim_arr[:, index] = sub_processes.choose_range(b0_arr,
-    #                                                       curr_vol,
-    #                                                       mask_arr)
 
     b0_binary_mask = nib.load(b0_mask_bi_fn)
     b0_mask_mask = b0_binary_mask.get_data()
 
     b0_img_target, b0_mask_img = sub_processes.dmc_make_target(b0_image_fn, b0_mask_mask)
 
-    # with pymp.Parallel() as p:
-    # for index in p.range(1, moving_image.shape[-1]):
-    for index in range(1, moving_image.shape[-1]):
-        curr_vol = moving_image_shr[:, :, :, index]
+    with pymp.Parallel() as p:
+        for index in p.range(1, moving_image.shape[-1]):
+    #     for index in range(1, moving_image.shape[-1]):
+            curr_vol = moving_image_shr[:, :, :, index]
 
-        lim_arr[:, index] = sub_processes.choose_range(b0_arr,
-                                                       curr_vol,
-                                                       b0_mask_img)
+            lim_arr[:, index] = sub_processes.choose_range(b0_arr,
+                                                           curr_vol,
+                                                           b0_mask_img)
 
-        transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target, b0_image.affine,
-                             curr_vol, image.affine,
-                             phase,
-                            lim_arr=lim_arr[:,index],
-                            registration_type='quadratic',
-                            initialize=True,
-                            optimizer_setting=False)
+            transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_img_target, b0_image.affine,
+                                 curr_vol, image.affine,
+                                 phase,
+                                lim_arr=lim_arr[:,index],
+                                registration_type='quadratic',
+                                initialize=True,
+                                optimizer_setting=False)
     np.savetxt(os.path.join(log_folder, 'transformations_test_2.txt'.format(index)), transformation)
 
     print("Time cost {}", time.time() - start_time)
 
     image_out = nib.Nifti1Image(moving_image_shr, image.affine)
-    image_out_fn = image_fn.split(".nii")[0] + "_image_eddy_test_python_2.nii"
+    image_out_fn = image_fn.strip(".nii")+ "_i_2.nii"
     nib.save(image_out, image_out_fn)
 
 test()
