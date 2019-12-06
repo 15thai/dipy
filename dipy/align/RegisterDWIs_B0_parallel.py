@@ -5,7 +5,7 @@ import numpy as np
 import pymp
 import nibabel as nib
 from dipy.align import sub_processes
-
+from dipy.align.fsl_bet import fsl_bet_mask
 
 def get_angles_list (step = 45):
     angles_list = []
@@ -136,19 +136,42 @@ def register_images (target_arr, target_affine,
 
 
 def test ():
-    b0_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0.nii"
-    moving_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/100408_LR_proc.nii"
-    mask_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0_mask_mask.nii"
+    import os
+    # mask_target = nib.load(mask_target_image)b0_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0.nii"
+    # moving_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/100408_LR_proc.nii"
+    # mask_target_image = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test2/process/temp_b0_mask_mask.nii"
+    #
+    # b0_target = nib.load(b0_target_image)
+    # moving_image = nib.load(moving_image)
+    image_fn = "/qmi_home/anht/Desktop/DIFFPREP_test_data/test4/cont_21_0_AP_b1100_proc.nii"
+    b0_image_fn = os.path.join(os.path.dirname(image_fn), 'temp_b0.nii')
+    b0_mask_image_fn = b0_image_fn.strip('.nii') +"mask.nii"
+    b0_mask_mask_image_fn = b0_mask_image_fn.strip('.nii') + "_mask.nii"
 
-    b0_target = nib.load(b0_target_image)
-    moving_image = nib.load(moving_image)
-    mask_target = nib.load(mask_target_image)
+    log_folder = os.path.join(os.path.dirname(image_fn), 'log_py')
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+        
+    b0_id = 0
+    image = nib.load(image_fn)
+    image_arr = image.get_data()
+    b0_arr = image_arr[...,b0_id]
+    b0_image = nib.Nifti1Image(b0_arr, image.affine)
+    nib.save(b0_image, b0_image_fn)
+    fsl_bet_mask(b0_image_fn, b0_mask_image_fn)
+
+    moving_image = image_arr.copy()
+    mask_image = nib.load(b0_mask_image_fn)
+    mask_image_arr = mask_image.get_data()
+
+    mask_mask_image = nib.load(b0_mask_mask_image_fn)
+    mask_mask_image_arr = mask_mask_image.get_data()
+
     phase = 'vertical'
     moving_image_shr = pymp.shared.array((moving_image.shape), dtype = np.float32)
-    moving_image_shr[:] = moving_image.get_data()
+    moving_image_shr[:] = image_arr
 
-    b0_arr = b0_target.get_data()
-    mask_arr = mask_target.get_data()
+
     lim_arr = pymp.shared.array((4, moving_image.shape[-1]), dtype=np.float32)
 
     transformation = pymp.shared.array((moving_image.shape[-1],21), dtype=np.float64)
@@ -159,14 +182,14 @@ def test ():
             curr_vol = moving_image_shr[:, :, :, index]
             lim_arr[:, index] = sub_processes.choose_range(b0_arr,
                                                            curr_vol,
-                                                           mask_arr)
+                                                           mask_image_arr)
 
     with pymp.Parallel() as p:
         for index in p.range(1, moving_image.shape[-1]):
             curr_vol = moving_image_shr[:, :, :, index]
 
-            transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_arr, b0_target.affine,
-                                 curr_vol, moving_image.affine,
+            transformation[index,:],moving_image_shr[:,:,:,index] =  register_images(b0_arr, b0_image.affine,
+                                 curr_vol, image.affine,
                                  phase,
                                 lim_arr=lim_arr[:,index],
                                 registration_type='quadratic',
@@ -176,8 +199,8 @@ def test ():
     print("Time cost {}", time.time() - start_time)
 
     np.savetxt('transformations_test.txt', transformation)
-    image_out = nib.Nifti1Image(moving_image_shr, moving_image.affine)
-    image_out_fn = moving_image.split(".nii")[0] + "_image_eddy_test.nii"
-    nib.save(image_out, 'Image_test.nii')
+    image_out = nib.Nifti1Image(moving_image_shr, image.affine)
+    image_out_fn = image_fn.strip(".nii") + "_image_eddy_test_1.nii"
+    nib.save(image_out, image_out_fn)
 
 test()

@@ -3,7 +3,7 @@ import os
 import nibabel as nib
 from dipy.denoise.GibbRemoval import  gibbremoval
 from dipy.denoise.randomlpca_denoise import randomlpca_denoise
-from dipy.denoise.fsl_bet import fsl_bet_mask
+from dipy.align.fsl_bet import fsl_bet_mask
 from dipy.align.reslice import reslice
 from dipy.denoise.ChangeFOV import changeFoV
 
