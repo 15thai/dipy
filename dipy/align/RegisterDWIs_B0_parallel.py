@@ -200,7 +200,7 @@ def test ():
 
     np.savetxt('transformations_test.txt', transformation)
     image_out = nib.Nifti1Image(moving_image_shr, image.affine)
-    image_out_fn = image_fn.strip(".nii") + "_image_eddy_test_1.nii"
+    image_out_fn = image_fn.strip(".nii") + "test_old_code_output.nii"
     nib.save(image_out, image_out_fn)
 
 test()
