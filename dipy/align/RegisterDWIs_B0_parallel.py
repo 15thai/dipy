@@ -10,16 +10,6 @@ from dipy.denoise.fsl_bet import fsl_mask
 # For Debugging purpose.
 import matplotlib.pyplot as plt
 
-def get_angles_list (step = 45):
-    angles_list = []
-    for x in range(-180, 180, step):
-        for y in range(-180, 180, step):
-            for z in range(-180, 180, step):
-                mx = x / 180 * np.pi
-                my = y / 180 * np.pi
-                mz = z / 180 * np.pi
-                angles_list.append([mx, my, mz])
-    return angles_list
 
 def register_images (target_arr, target_affine,
                      moving_arr, moving_affine,
